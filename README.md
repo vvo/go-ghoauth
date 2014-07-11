@@ -3,6 +3,8 @@
 Provides easy two steps flow to create an `access_token`
 for your wonderfull github application.
 
+[![wercker status](https://app.wercker.com/status/701ab65200a2288626c33231ed44b07f/m "wercker status")](https://app.wercker.com/project/bykey/701ab65200a2288626c33231ed44b07f)
+
 ## Example
 
 [example/webapp.go](example/webapp.go)
