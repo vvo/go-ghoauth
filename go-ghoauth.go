@@ -1,35 +1,53 @@
 // Package ghoauth provides acces_token creation for your github application
-
-// Two steps usage:
-//   1. redirect user to github auth page
-//   2. create an access_token
 //
-// Example usage
-//	var gh = ghoauth.New(&ghoauth.Config{
-//		ClientId:     "$client_id",
-//		ClientSecret: "$client_secret",
-//		RedirectUri:  "$redirect_uri",
+// Two steps:
+//	1. redirect user to github auth page
+//	2. create an access_token
+//
+// Example:
+//	package main
+//
+//	import (
+//		"github.com/vvo/go-ghoauth"
+//		"net/http"
+//	)
+//
+//	var ghflow = ghoauth.New(&ghoauth.Config{
+//		ClientId:     "82c041166d565cf2f149",
+//		ClientSecret: "6458b989c06d8106f468fd47106d8654e3887d5b",
+//		RedirectUri:  "http://localhost:8080/callback",
 //		Scope:        "user:public",
 //	})
 //
-//	// step 1: redirect users to the right github oauth page
-//	// https://developer.github.com/v3/oauth/#redirect-users-to-request-github-access
-//	func loginHandler(w http.ResponseWriter, r *http.Request) {
-//		gh.Login(w, r)
+//	func main() {
+//		// step 1: redirect users to the right github oauth page
+//		// https://developer.github.com/v3/oauth/#redirect-users-to-request-github-access
+//		http.HandleFunc("/login", ghflow.Login)
+//		http.HandleFunc("/callback", callback)
+//
+//		http.HandleFunc("/", root)
+//		panic(http.ListenAndServe(":8080", nil))
 //	}
 //
-//	// step 2: generate a token using github oauth access_token POST url
-//	// callback does not responds to client for you, it only generates a token
-//	// https://developer.github.com/v3/oauth/#github-redirects-back-to-your-site
-//	func callbackHandler(w http.ResponseWriter, r *http.Request) {
-//		token, err := gh.Callback(r)
+//	func callback(w http.ResponseWriter, r *http.Request) {
+//		// step 2: github calls you using redirect_uri
+//		// we generate a token using github oauth access_token POST url
+//		// callback does not responds to client for you, it only generates a token
+//		// https://developer.github.com/v3/oauth/#github-redirects-back-to-your-site
+//		token, err := ghflow.Callback(r)
 //
 //		if err != nil {
-//			println("Something went wrong")
+//			w.Write([]byte("UhOh!"))
 //		}
 //
 //		// token is now available and usable
+//		w.Write([]byte("Here's your access_token budy: " + token))
 //	}
+//
+//	func root(w http.ResponseWriter, r *http.Request) {
+//		w.Write([]byte("<a href=/login>login</a>"))
+//	}
+//
 package ghoauth
 
 import (
