@@ -7,12 +7,22 @@ import (
 	"testing"
 )
 
+const (
+	client_id     = "82c041166d565cf2f149"
+	client_secret = "6458b989c06d8106f468fd47106d8654e3887d5b"
+	redirect_uri  = "http://localhost:8080/callback"
+	scope         = "user,repo:status"
+	ghcode        = "d21kld21ldk21"
+	ghresponse    = `{"access_token":"e72e16c7e42f292c6912e7710c838347ae178b4a", "scope":"user,repo:status", "token_type":"bearer"}`
+	access_token  = "e72e16c7e42f292c6912e7710c838347ae178b4a"
+)
+
 func TestLogin(t *testing.T) {
 	f := New(&Config{
-		ClientId:     "99cf2e4846d90af7a650",
-		ClientSecret: "d9yqi4rr6jjyoeqcn405m99zj84nmj70j2x8h6ky",
-		RedirectUri:  "http://yaw-dawg.com/sup",
-		Scope:        "user,repo:status",
+		ClientId:     client_id,
+		ClientSecret: client_secret,
+		RedirectUri:  redirect_uri,
+		Scope:        scope,
 	})
 
 	r, _ := http.NewRequest("GET", "/login", nil)
@@ -39,15 +49,15 @@ func TestLogin(t *testing.T) {
 
 	q := redirect.Query()
 
-	if q.Get("client_id") != "99cf2e4846d90af7a650" {
+	if q.Get("client_id") != client_id {
 		t.Error("Bad `client_id` in redirect querystring")
 	}
 
-	if q.Get("redirect_uri") != "http://yaw-dawg.com/sup" {
+	if q.Get("redirect_uri") != redirect_uri {
 		t.Error("Bad `redirect_uri` in redirect querystring")
 	}
 
-	if q.Get("scope") != "user,repo:status" {
+	if q.Get("scope") != scope {
 		t.Error("Bad `scope` in redirect querystring")
 	}
 
@@ -67,31 +77,27 @@ func TestLogin(t *testing.T) {
 
 func TestCallback(t *testing.T) {
 	f := New(&Config{
-		ClientId:     "99cf2e4846d90af7a650",
-		ClientSecret: "d9yqi4rr6jjyoeqcn405m99zj84nmj70j2x8h6ky",
-		RedirectUri:  "http://yaw-dawg.com/sup",
-		Scope:        "user,repo:status",
+		ClientId:     client_id,
+		ClientSecret: client_secret,
+		RedirectUri:  redirect_uri,
+		Scope:        scope,
 	})
-
-	// code sent by github in response to first step
-	ghCode := "d21kld21ldk21"
 
 	// fake github response server
 	fakeGithub := func(w http.ResponseWriter, r *http.Request) {
-		if r.FormValue("client_id") != f.ClientId {
+		if r.FormValue("client_id") != client_id {
 			t.Error("provided client_id differs")
 		}
 
-		if r.FormValue("client_secret") != f.ClientSecret {
+		if r.FormValue("client_secret") != client_secret {
 			t.Error("provided client_secret differs")
 		}
 
-		if r.FormValue("code") != ghCode {
+		if r.FormValue("code") != ghcode {
 			t.Error("provided code differs from github")
 		}
 
-		json := `{"access_token":"e72e16c7e42f292c6912e7710c838347ae178b4a", "scope":"user,repo:status", "token_type":"bearer"}`
-		w.Write([]byte(json))
+		w.Write([]byte(ghresponse))
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(fakeGithub))
@@ -106,13 +112,11 @@ func TestCallback(t *testing.T) {
 	redirectUrl, _ := url.Parse(w.Header().Get("Location"))
 	generatedState := redirectUrl.Query().Get("state")
 
-	expectedToken := "e72e16c7e42f292c6912e7710c838347ae178b4a"
-
 	// construct github fake redirect request to our server
 	callbackUrl, _ := url.Parse("/callback")
 	q := callbackUrl.Query()
 	q.Set("state", "bad state")
-	q.Set("code", ghCode)
+	q.Set("code", ghcode)
 
 	callbackUrl.RawQuery = q.Encode()
 
@@ -135,7 +139,7 @@ func TestCallback(t *testing.T) {
 		t.Error(err)
 	}
 
-	if token != expectedToken {
+	if token != access_token {
 		t.Error("Token mismatch")
 	}
 }
