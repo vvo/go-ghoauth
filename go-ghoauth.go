@@ -83,6 +83,11 @@ type oauthFlow struct {
 	*Config
 }
 
+// refers to https://developer.github.com/v3/oauth/#github-redirects-back-to-your-site
+// "If the states don’t match, the request has been created
+//  by a third party and the process should be aborted."
+var ErrStateNotFound = errors.New("Provided `state` was not found")
+
 var states map[string]bool = make(map[string]bool)
 
 // Redirects to https://github.com/login/oauth/authorize
@@ -115,18 +120,16 @@ func (f *oauthFlow) Login(w http.ResponseWriter, r *http.Request) {
 func (f *oauthFlow) Callback(r *http.Request) (string, error) {
 
 	if states[r.FormValue("state")] != true {
-		return "", errors.New("Provided `state` was not found")
+		return "", ErrStateNotFound
 	}
 
 	delete(states, r.FormValue("state"))
 
 	type access_tokenResponse struct {
-		AccessToken      string `json:"access_token"`
-		Scope            string `json:"scope"`
-		TokenType        string `json:"token_type"`
-		Error            string `json:"error"`
-		ErrorDescription string `json:"error_description"`
-		ErrorUri         string `json:"error_uri"`
+		AccessToken string `json:"access_token"`
+		Scope       string `json:"scope"`
+		TokenType   string `json:"token_type"`
+		GithubError
 	}
 
 	u, _ := url.Parse(f.BaseUrl)
@@ -151,24 +154,22 @@ func (f *oauthFlow) Callback(r *http.Request) (string, error) {
 	}
 
 	client := &http.Client{}
-	res, err := client.Do(req)
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
 
 	if err != nil {
 		return "", err
 	}
 
 	js := access_tokenResponse{}
-	err = json.NewDecoder(res.Body).Decode(&js)
+	err = json.NewDecoder(resp.Body).Decode(&js)
 
 	if err != nil {
-		println(res.Status)
 		return "", err
 	}
 
 	if js.AccessToken == "" {
-		return "", fmt.Errorf(
-			"GitHub error: %s, error_description: %s, error_uri: %s",
-			js.Error, js.ErrorDescription, js.ErrorUri)
+		return "", &GithubError{js.RawError, js.ErrorDescription, js.ErrorUri}
 	}
 
 	return js.AccessToken, nil
@@ -180,4 +181,17 @@ func New(config *Config) *oauthFlow {
 	}
 
 	return &oauthFlow{config}
+}
+
+type GithubError struct {
+	RawError         string `json:"error"`
+	ErrorDescription string `json:"error_description"`
+	ErrorUri         string `json:"error_uri"`
+}
+
+func (e *GithubError) Error() string {
+	return fmt.Sprintf(
+		"GitHub error: %s, error_description: %s, error_uri: %s",
+		e.RawError, e.ErrorDescription, e.ErrorUri,
+	)
 }
