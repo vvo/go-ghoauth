@@ -85,7 +85,7 @@ type oauthFlow struct {
 
 // refers to https://developer.github.com/v3/oauth/#github-redirects-back-to-your-site
 // "If the states don’t match, the request has been created
-//  by a third party and the process should be aborted."
+// by a third party and the process should be aborted."
 var ErrStateNotFound = errors.New("Provided `state` was not found")
 
 var states map[string]bool = make(map[string]bool)
